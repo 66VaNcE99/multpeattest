@@ -2487,11 +2487,11 @@
                     <div class="modal-stat">
                         <div class="modal-stat-header">
                             <div class="modal-stat-main">
-                                <div class="modal-stat-label">Extraction Peatlands</div>
-                                <div class="modal-stat-value">${formatNumber(country.extraction)} </div>
+                                <div class="modal-stat-label">Non-Natural Peatlands</div>
+                                <div class="modal-stat-value">${formatNumber(country.area - ((country.natural || 0) ))} </div>
                             </div>
                         </div>
-                        ${createSourceInfo('Extraction Peatlands', country.extractionSource, country.extractionDate)}
+                        ${createSourceInfo('Non-Natural Peatlands', country.extractionSource, country.extractionDate)}
                     </div>
 
                     <div class="modal-stat">
@@ -2514,28 +2514,18 @@
                         ${createSourceInfo('Agricultural Peatlands', country.agriculturalSource, country.agriculturalDate)}
                     </div>
                     
-                    <div class="modal-stat">
-                        <div class="modal-stat-header">
-                            <div class="modal-stat-main">
-                                <div class="modal-stat-label">Other Peatlands</div>
-                                <div class="modal-stat-value">${formatNumber(country.miscellaneous)} </div>
-                            </div>
-                        </div>
-                        ${createSourceInfo('Other Peatlands', country.miscellaneousSource)}
-                    </div>
+                    
                     
                 <div class="fact-summary">
                     <div class="fact-summary-title">${country.country} Peatland Profile</div>
                     <div class="fact-summary-text">
                         <strong>${country.country}</strong> is a member state of the European Union.
-                        The total land area is <strong>${formatNumber(country.land)} hectares</strong>.
+                        The total land area is <strong>${formatNumber(country.land)}</strong>.
                         Of this, <strong>${country.percentage.toFixed(2)}%</strong> is peatlands covering
-                        <strong>${formatNumber(country.area)} hectares</strong>.
-                        Agricultural peatlands account for <strong>${formatNumber(country.agricultural)} ha</strong>,
-                        afforested peatlands for <strong>${formatNumber(country.afforested)} ha</strong>,
-                        natural peatlands for <strong>${formatNumber(country.natural)} ha</strong>,
-                        extraction sites for <strong>${formatNumber(country.extraction)} ha</strong> 
-                        and the rest of peatlands for <strong>${formatNumber(country.miscellaneous)} ha</strong>.
+                        <strong>${formatNumber(country.area)}</strong>.
+                        Agricultural peatlands account for <strong>${formatNumber(country.agricultural)}</strong>,
+                        afforested peatlands for <strong>${formatNumber(country.afforested)}</strong> and
+                        natural peatlands for <strong>${formatNumber(country.natural)}</strong>.
                     </div>
                 </div>
 
