@@ -1582,8 +1582,8 @@
                     </h2>
 
                     <p class="atlas-description">
-                        Explore all of the European member states. Peatland statistics
-                        and detailed factsheets are currently available for EU-27 countries;
+                        Explore peatland areas across the EU27 Countries and the United Kingdom.
+                        Country factsheet data is currently available for EU27 countries;
                         countries without data are shown in grey.
                     </p>
 
@@ -1597,13 +1597,9 @@
             <div class="atlas-metric-controls">
                 <label class="atlas-metric-label" for="atlasMetricSelect">Range by</label>
                 <select class="atlas-metric-select" id="atlasMetricSelect" onchange="changeAtlasMetric(this.value)">
-                    <option value="percentage" selected>Peatland Coverage (%)</option>
-                    <option value="area">Total Peatland Area (ha)</option>
+                    <option value="area" selected>Total Peatlands (ha)</option>
                     <option value="natural">Natural Peatlands (ha)</option>
-                    <option value="extraction">Extraction Peatlands (ha)</option>
-                    <option value="afforested">Afforested Peatlands (ha)</option>
-                    <option value="agricultural">Agricultural Peatlands (ha)</option>
-                    <option value="miscellaneous">Miscellaneous Peatlands (ha)</option>
+                    <option value="nonnatural">Non-Natural Peatlands (ha)</option>
                 </select>
             </div>
 
@@ -2445,13 +2441,8 @@
         const atlasCountryLayers = new Map();
 
         const atlasMetricConfig = {
-            percentage: {
-                label: 'Peatland Coverage',
-                unit: '%',
-                decimals: 2
-            },
             area: {
-                label: 'Total Peatland Area',
+                label: 'Total Peatlands',
                 unit: 'ha',
                 decimals: 0
             },
@@ -2460,30 +2451,15 @@
                 unit: 'ha',
                 decimals: 0
             },
-            extraction: {
-                label: 'Extraction Peatlands',
-                unit: 'ha',
-                decimals: 0
-            },
-            afforested: {
-                label: 'Afforested Peatlands',
-                unit: 'ha',
-                decimals: 0
-            },
-            agricultural: {
-                label: 'Agricultural Peatlands',
-                unit: 'ha',
-                decimals: 0
-            },
-            miscellaneous: {
-                label: 'Miscellaneous Peatlands',
+            nonnatural: {
+                label: 'Non-Natural Peatlands',
                 unit: 'ha',
                 decimals: 0
             }
         };
 
-        // Default metric.
-        let selectedAtlasMetric = 'percentage';
+        // Initial choropleth shows total peatland area.
+        let selectedAtlasMetric = 'area';
 
         function changeAtlasMetric(metric) {
             if (!Object.prototype.hasOwnProperty.call(atlasMetricConfig, metric)) {
@@ -2508,27 +2484,54 @@
 
         let atlasQuantileBreaks = [];
 
-        function getAtlasMetricValue(country) {
+        // Non-natural values come from the available subcategories. Missing values
+        // are never treated as known zeroes; the sum is flagged as partial.
+        const atlasNonNaturalFields = [
+            ['extraction', 'Extraction'],
+            ['afforested', 'Afforested'],
+            ['agricultural', 'Agricultural'],
+            ['miscellaneous', 'Miscellaneous / Other']
+        ];
 
-            if (!country) return null;
+        function getAtlasMetricDetails(country) {
+            if (!country) return { value: null, partial: false, missing: [] };
 
-            const value = country[selectedAtlasMetric];
+            if (selectedAtlasMetric === 'nonnatural') {
+                let sum = 0;
+                let availableCount = 0;
+                const missing = [];
 
-            if (
-                value === null ||
-                value === undefined ||
-                value === ''
-            ) {
-                return null;
+                for (const [key, label] of atlasNonNaturalFields) {
+                    const raw = country[key];
+                    if (raw === null || raw === undefined || raw === '' ||
+                        !Number.isFinite(Number(raw)) || Number(raw) < 0) {
+                        missing.push(label);
+                    } else {
+                        sum += Number(raw);
+                        availableCount++;
+                    }
+                }
+
+                return {
+                    value: availableCount > 0 ? sum : null,
+                    partial: availableCount > 0 && missing.length > 0,
+                    missing
+                };
             }
 
-            const numericValue = Number(value);
-
-            return Number.isFinite(numericValue)
-                ? numericValue
-                : null;
+            const raw = country[selectedAtlasMetric];
+            const value = raw === null || raw === undefined || raw === ''
+                ? NaN : Number(raw);
+            return {
+                value: Number.isFinite(value) && value >= 0 ? value : null,
+                partial: false,
+                missing: []
+            };
         }
 
+        function getAtlasMetricValue(country) {
+            return getAtlasMetricDetails(country).value;
+        }
 
         function formatAtlasMetricValue(value) {
 
@@ -2636,7 +2639,7 @@
 
             const validValues = [];
 
-            // Collect values from the complete EU-27 dataset.
+            // Calculate ranges from the available EU-27 factsheet records (UK has no record).
             atlasCountryDataByCode.forEach(function(country) {
 
                 const value = getAtlasMetricValue(country);
@@ -2654,7 +2657,8 @@
 
                 const country = atlasCountryDataByCode.get(code);
                 const countryName = country?.country || layer.feature?.properties?.NAME_ENGL || code;
-                const value = getAtlasMetricValue(country);
+                const details = getAtlasMetricDetails(country);
+                const value = details.value;
 
                 layer.setStyle(getAtlasCountryStyle({
                     properties: {
@@ -2666,7 +2670,10 @@
                 layer.setTooltipContent(
                     `<strong>${countryName}</strong><br>` +
                     `${atlasMetricConfig[selectedAtlasMetric].label}: ` +
-                    `${formatAtlasMetricValue(value)}`
+                    `${formatAtlasMetricValue(value)}` +
+                    (details.partial
+                        ? `<br><em>Partial reported sum; missing: ${details.missing.join(', ')}</em>`
+                        : '')
                 );
             });
 
@@ -2753,6 +2760,19 @@
                     <span>Data not available</span>
                 </div>
             `;
+
+            if (selectedAtlasMetric === 'nonnatural') {
+                const partialCount = Array.from(atlasCountryDataByCode.values())
+                    .filter(country => getAtlasMetricDetails(country).partial).length;
+                legendHTML += `
+                    <div class="atlas-legend-title" style="font-weight:400; line-height:1.5;">
+                        Sum of available extraction, afforested, agricultural and miscellaneous/other peatland areas.
+                        ${partialCount} country record(s) have incomplete subcategory data; their colour represents
+                        a partial reported sum, not a confirmed non-natural total.
+                        Missing categories are not assumed to be zero.
+                    </div>
+                `;
+            }
 
             legend.innerHTML = legendHTML;
         }
@@ -2885,7 +2905,7 @@
                 const expectedCount = geoJsonData.features.length;
 
                 setAtlasStatus(
-                    `Loaded ${loadedCount} of ${expectedCount} European country boundaries. Select a coloured country to explore its factsheet. Grey indicates unavailable data.`
+                    `Loaded ${loadedCount} of ${expectedCount} country boundaries. Select a coloured country to explore its factsheet. Grey indicates unavailable data.`
                 );
 
                 setTimeout(function() {
